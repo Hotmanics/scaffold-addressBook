@@ -49,11 +49,12 @@ const Home: NextPage = () => {
         <p>{entry.baseStructure.displayName}</p> <Address address={entry.baseStructure.contact} />
         <p>Node Index: {entry.nodeIndex.toString()}</p>
         <button
+          className="btn"
           onClick={async () => {
             await removeByIndex({ args: [entry.nodeIndex] });
           }}
         >
-          X
+          Remove
         </button>
       </div>
     );
