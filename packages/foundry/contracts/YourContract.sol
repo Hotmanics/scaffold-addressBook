@@ -3,82 +3,154 @@ pragma solidity >=0.8.0 <0.9.0;
 
 // Useful for debugging. Remove when deploying to a live network.
 import "forge-std/console.sol";
+import {StructuredLinkedList} from
+    "solidity-linked-list/contracts/StructuredLinkedList.sol";
 
-// Use openzeppelin to inherit battle-tested implementations (ERC20, ERC721, etc)
 // import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * A smart contract that allows changing a state variable of the contract and tracking the changes
- * It also allows the owner to withdraw the Ether in the contract
- * @author BuidlGuidl
- */
 contract YourContract {
-    // State Variables
-    address public immutable owner;
-    string public greeting = "Building Unstoppable Apps!!!";
-    bool public premium = false;
-    uint256 public totalCounter = 0;
-    mapping(address => uint256) public userGreetingCounter;
+    using StructuredLinkedList for StructuredLinkedList.List;
 
-    // Events: a way to emit log statements from smart contract that can be listened to by external parties
-    event GreetingChange(
-        address indexed greetingSetter,
-        string newGreeting,
-        bool premium,
-        uint256 value
-    );
-
-    // Constructor: Called once on contract deployment
-    // Check packages/foundry/deploy/Deploy.s.sol
-    constructor(address _owner) {
-        owner = _owner;
+    struct BaseStructure {
+        address contact;
+        string displayName;
     }
 
-    // Modifier: used to define a set of rules that must be met before or after a function is executed
-    // Check the withdraw() function
-    modifier isOwner() {
-        // msg.sender: predefined variable that represents address of the account that called the current function
-        require(msg.sender == owner, "Not the Owner");
-        _;
+    // struct MasterStructure {
+    //     StructuredLinkedList.List s_list;
+    //     mapping(uint256 => BaseStructure) s_structureMap;
+    //     uint256 s_progressiveId;
+    // }
+
+    // mapping(address user => MasterStructure sheet) userBook;
+
+    mapping(address user => StructuredLinkedList.List list) public s_list;
+    mapping(address user => mapping(uint256 => BaseStructure)) public
+        s_structureMap;
+    mapping(address user => uint256) public s_progressiveId;
+
+    // StructuredLinkedList.List public s_list;
+    // mapping(uint256 => BaseStructure) public s_structureMap;
+    // uint256 s_progressiveId;
+
+    function add(address contact, string memory displayName) public {
+        s_progressiveId[msg.sender] = s_progressiveId[msg.sender] + 1;
+        s_structureMap[msg.sender][s_progressiveId[msg.sender]] =
+            BaseStructure(contact, displayName);
+        s_list[msg.sender].pushBack(s_progressiveId[msg.sender]);
     }
 
-    /**
-     * Function that allows anyone to change the state variable "greeting" of the contract and increase the counters
-     *
-     * @param _newGreeting (string memory) - new greeting to save on the contract
-     */
-    function setGreeting(string memory _newGreeting) public payable {
-        // Print data to the anvil chain console. Remove when deploying to a live network.
+    function getSizeOf(address user) external view returns (uint256 sizeOf) {
+        sizeOf = s_list[user].sizeOf();
+    }
 
-        console.logString("Setting new greeting");
-        console.logString(_newGreeting);
+    function remove(address contact) public {
+        uint256 sizeOf = s_list[msg.sender].sizeOf();
 
-        greeting = _newGreeting;
-        totalCounter += 1;
-        userGreetingCounter[msg.sender] += 1;
+        uint256 selectedNode = 0;
 
-        // msg.value: built-in global variable that represents the amount of ether sent with the transaction
-        if (msg.value > 0) {
-            premium = true;
-        } else {
-            premium = false;
+        for (uint256 i = 1; i <= sizeOf; i++) {
+            (bool exists, uint256 next) =
+                s_list[msg.sender].getNextNode(selectedNode);
+            selectedNode = next;
+
+            if (exists) {
+                if (s_structureMap[msg.sender][selectedNode].contact == contact)
+                {
+                    s_list[msg.sender].remove(selectedNode);
+                }
+            }
+        }
+    }
+
+    function removeByIndex(uint256 index) external {
+        uint256 sizeOf = s_list[msg.sender].sizeOf();
+
+        uint256 selectedNode = 0;
+
+        for (uint256 i = 1; i <= sizeOf; i++) {
+            (bool EXISTS, uint256 NEXT) =
+                s_list[msg.sender].getNextNode(selectedNode);
+            selectedNode = NEXT;
+
+            if (EXISTS) {
+                if (i == index) {
+                    s_list[msg.sender].remove(selectedNode);
+                }
+            }
+        }
+    }
+
+    // function add(address contact, string memory displayName) public {
+    //     userBook[msg.sender].s_progressiveId =
+    //         userBook[msg.sender].s_progressiveId + 1;
+    //     userBook[msg.sender].s_structureMap[userBook[msg.sender].s_progressiveId]
+    //     = BaseStructure(contact, displayName);
+
+    //     userBook[msg.sender].s_list.pushBack(
+    //         userBook[msg.sender].s_progressiveId
+    //     );
+    // }
+
+    // function getAddressBook(address user) external view returns(MasterStructure memory) {
+    //     return userBook[user];
+    // }
+
+    // function getSizeOf() external view returns (uint256 sizeOf) {
+    //     sizeOf = userBook[msg.sender].s_list.sizeOf();
+    // }
+
+    // function remove(address contact) public {
+    //     uint256 sizeOf = userBook[msg.sender].s_list.sizeOf();
+
+    //     uint256 selectedNode = 0;
+
+    //     for (uint256 i = 1; i <= sizeOf; i++) {
+    //         (bool exists, uint256 next) =
+    //             userBook[msg.sender].s_list.getNextNode(selectedNode);
+    //         selectedNode = next;
+
+    //         if (exists) {
+    //             if (
+    //                 userBook[msg.sender].s_structureMap[selectedNode].contact
+    //                     == contact
+    //             ) {
+    //                 userBook[msg.sender].s_list.remove(selectedNode);
+    //             }
+    //         }
+    //     }
+    // }
+
+    struct BaseStructureWithNodeIndex {
+        BaseStructure baseStructure;
+        uint256 nodeIndex;
+    }
+
+    function getAll(address user)
+        external
+        view
+        returns (BaseStructureWithNodeIndex[] memory)
+    {
+        uint256 sizeOf = s_list[user].sizeOf();
+
+        BaseStructureWithNodeIndex[] memory entries =
+            new BaseStructureWithNodeIndex[](sizeOf);
+        // BaseStructure[] memory entries = new BaseStructure[](sizeOf);
+        // uint256[] memory entriesIds = new uint256[](sizeOf);
+
+        uint256 selectedNode = 0;
+
+        for (uint256 i = 1; i <= sizeOf; i++) {
+            (bool exists, uint256 next) = s_list[user].getNextNode(selectedNode);
+            selectedNode = next;
+
+            if (exists) {
+                entries[i - 1].baseStructure =
+                    s_structureMap[user][selectedNode];
+                entries[i - 1].nodeIndex = selectedNode;
+            }
         }
 
-        // emit: keyword used to trigger an event
-        emit GreetingChange(msg.sender, _newGreeting, msg.value > 0, msg.value);
+        return entries;
     }
-
-    /**
-     * Function that allows the owner to withdraw all the Ether in the contract
-     * The function can only be called by the owner of the contract as defined by the isOwner modifier
-     */
-    function withdraw() public isOwner {
-        (bool success,) = owner.call{value: address(this).balance}("");
-        require(success, "Failed to send Ether");
-    }
-
-    /**
-     * Function that allows the contract to receive ETH
-     */
-    receive() external payable {}
 }
